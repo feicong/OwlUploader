@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to upload to (optional)"
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build app
+        run: |
+          xcodebuild -project OwlUploader.xcodeproj \
+            -scheme OwlUploader \
+            -configuration Release \
+            -derivedDataPath DerivedData \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="-"
+
+      - name: Package DMG
+        run: |
+          mkdir -p dist
+          hdiutil create \
+            -volname "OwlUploader" \
+            -srcfolder "DerivedData/Build/Products/Release/OwlUploader.app" \
+            -ov -format UDZO \
+            "dist/OwlUploader.dmg"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: OwlUploader-dmg
+          path: dist/OwlUploader.dmg
+          if-no-files-found: error
